@@ -1,6 +1,5 @@
 import { promisify } from "util";
 import path from "path";
-import sqlite3 from "sqlite3";
 import { createClient } from "@supabase/supabase-js";
 
 // Check for Supabase Environment Variables
@@ -18,14 +17,28 @@ if (isSupabaseEnabled) {
   console.log(" CLIENTAGENT: Cloud Database Active (Supabase Mode)");
   console.log("=================================================");
 } else {
-  const dbFile = path.resolve("./database.db");
-  db = new sqlite3.Database(dbFile);
-  dbRun = promisify(db.run.bind(db));
-  dbAll = promisify(db.all.bind(db));
-  dbGet = promisify(db.get.bind(db));
-  console.log("=================================================");
-  console.log(" CLIENTAGENT: Local Database Active (SQLite Mode)");
-  console.log("=================================================");
+  // Only try to import sqlite3 if we're not in production with Supabase
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const sqlite3Module = await import('sqlite3');
+      const sqlite3 = sqlite3Module.default;
+      const dbFile = path.resolve("./database.db");
+      db = new sqlite3.Database(dbFile);
+      dbRun = promisify(db.run.bind(db));
+      dbAll = promisify(db.all.bind(db));
+      dbGet = promisify(db.get.bind(db));
+      console.log("=================================================");
+      console.log(" CLIENTAGENT: Local Database Active (SQLite Mode)");
+      console.log("=================================================");
+    } catch (error) {
+      console.error("SQLite3 not available. Please configure Supabase for production deployment.");
+      process.exit(1);
+    }
+  } else {
+    console.error("PRODUCTION ERROR: Supabase credentials required for production deployment.");
+    console.error("Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.");
+    process.exit(1);
+  }
 }
 
 // SQL Schema for copy-paste in Supabase SQL editor
