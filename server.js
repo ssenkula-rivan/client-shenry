@@ -612,7 +612,7 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
   // Serve logo from root as well
   app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
-  app.get("*", (req, res, next) => {
+  app.get("/*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.resolve(distPath, "index.html"));
   });
