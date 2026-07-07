@@ -618,22 +618,28 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 // Serve frontend build static files in production
 const distPath = path.resolve("./dist");
 if (fs.existsSync(distPath)) {
+  // Serve static files first
   app.use(express.static(distPath));
+  
   // Serve logo from root as well
   app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
   
-  // Catch-all handler for SPA routing (must be last)
-  app.get('*', (req, res, next) => {
-    // Skip API routes
-    if (req.path.startsWith('/api')) {
+  // Handle client-side routing - send all non-API requests to index.html
+  app.use((req, res, next) => {
+    // Skip API routes and static assets
+    if (req.path.startsWith('/api') || 
+        req.path.includes('.') || 
+        req.method !== 'GET') {
       return next();
     }
+    
+    // Send index.html for all other routes (SPA routing)
     res.sendFile(path.resolve(distPath, "index.html"));
   });
   
   console.log("Serving static production build from /dist folder.");
 } else {
-  // Development mode - serve logo
+  // Development mode - serve logo only
   app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
   console.log("Static folder /dist not found. Running in development mode (API only).");
 }
