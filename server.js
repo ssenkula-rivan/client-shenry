@@ -619,19 +619,11 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 const distPath = path.resolve("./dist");
 if (fs.existsSync(distPath)) {
   // Serve static files
-  app.use(express.static(distPath, { index: false }));
+  app.use(express.static(distPath));
   
   // Serve logo from root
   app.get('/LOGO.png', (req, res) => {
     res.sendFile(path.resolve('./LOGO.png'));
-  });
-  
-  // Handle all non-API routes by serving index.html
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ error: 'API endpoint not found' });
-    }
-    res.sendFile(path.resolve(distPath, "index.html"));
   });
   
   console.log("Serving static production build from /dist folder.");
