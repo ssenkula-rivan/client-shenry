@@ -106,14 +106,20 @@ export default function DesignerAgentSystem() {
   const fetchAgentStatus = async () => {
     try {
       const res = await fetch("/api/status");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error("Server API not responding - check if backend is running");
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       setAgentState(data);
     } catch (e) {
       console.error("Failed to fetch agent status", e);
       setAgentState(prev => ({ 
         ...prev, 
-        logs: [...prev.logs, "[ERROR] Cannot connect to backend server"] 
+        running: false,
+        logs: [`[${new Date().toLocaleTimeString()}] ERROR: Cannot connect to backend server - ${e.message}`] 
       }));
     }
   };
@@ -160,21 +166,29 @@ export default function DesignerAgentSystem() {
   const handleTriggerAgent = async () => {
     if (agentState.running) return;
     setLoading(true);
+    
     try {
+      console.log("Starting agent pipeline...");
       const res = await fetch("/api/run-agent", { 
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
-      if (res.ok) {
-        fetchAgentStatus();
-        // Start polling more frequently during execution
-        setTimeout(() => fetchLeads(), 3000);
-      } else {
-        const error = await res.text();
-        alert(`Failed to start agent: ${error}`);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Server error (${res.status}): ${errorText}`);
       }
+      
+      const result = await res.json();
+      console.log("Agent started successfully:", result);
+      
+      // Immediately refresh status
+      setTimeout(() => fetchAgentStatus(), 500);
+      setTimeout(() => fetchLeads(), 3000);
+      
     } catch (e) {
-      alert("Error starting agent pipeline. Check your network connection.");
+      console.error("Agent trigger failed:", e);
+      alert(`Failed to start agent: ${e.message}\n\nCheck:\n1. Internet connection\n2. API key in Settings\n3. Server is running`);
     } finally {
       setLoading(false);
     }
@@ -258,17 +272,17 @@ export default function DesignerAgentSystem() {
       });
       
       if (res.ok) {
-        alert("✅ Email sent successfully!");
+        alert("Email sent successfully!");
         setEmailDraft("");
         // Update lead status to reflect email was sent
         handleUpdateLeadStatus(leadId, "warm", "Outreach Sent");
         fetchEmailLogs();
       } else {
         const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        alert(`❌ Failed to send email: ${err.error}`);
+        alert(`Failed to send email: ${err.error}`);
       }
     } catch (e) {
-      alert("❌ Failed to send email. Check your SMTP/SendGrid configuration in Settings.");
+      alert("Failed to send email. Check your SMTP/SendGrid configuration in Settings.");
     } finally {
       setLoading(false);
     }
@@ -394,7 +408,7 @@ export default function DesignerAgentSystem() {
                       Starting...
                     </>
                   ) : (
-                    "🚀 Run Agent Pipeline Now"
+                    "Run Agent Pipeline Now"
                   )}
                 </button>
               </div>
@@ -454,9 +468,11 @@ export default function DesignerAgentSystem() {
                   className="custom-input" 
                   placeholder="Ask agent for creative support..." 
                   value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
+                  onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={handleChatKeyDown}
                   disabled={loading}
+                  autoComplete="off"
+                  style={{ fontSize: "14px" }}
                 />
                 <button 
                   className="btn btn-primary" 
@@ -936,10 +952,11 @@ export default function DesignerAgentSystem() {
             className="custom-input"
             placeholder="Ask strategies, email followups, or client advice..."
             value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
+            onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={handleChatKeyDown}
             disabled={loading}
-            style={{ flex: 1 }}
+            style={{ flex: 1, fontSize: "14px" }}
+            autoComplete="off"
           />
           <button 
             className="btn btn-primary" 
