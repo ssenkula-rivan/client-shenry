@@ -606,23 +606,6 @@ Always reply in a warm, direct, professional, and action-oriented manner. Under 
   }
 });
 
-// Serve frontend build static files in production
-const distPath = path.resolve("./dist");
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-  // Serve logo from root as well
-  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
-  app.get("/*", (req, res, next) => {
-    if (req.path.startsWith("/api")) return next();
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
-  console.log("Serving static production build from /dist folder.");
-} else {
-  // Development mode - serve logo
-  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
-  console.log("Static folder /dist not found. Running in development mode (API only).");
-}
-
 // Start Server on all interfaces (0.0.0.0) so phone can access it!
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`=================================================`);
@@ -631,6 +614,29 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(` Access on Android phone via: http://<PC-IP>:${PORT}`);
   console.log(`=================================================`);
 });
+
+// Serve frontend build static files in production
+const distPath = path.resolve("./dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // Serve logo from root as well
+  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
+  
+  // Catch-all handler for SPA routing (must be last)
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
+  
+  console.log("Serving static production build from /dist folder.");
+} else {
+  // Development mode - serve logo
+  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
+  console.log("Static folder /dist not found. Running in development mode (API only).");
+}
 
 // Initialize database after server starts
 initDb().then(() => {
