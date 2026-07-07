@@ -56,22 +56,21 @@ export default function DesignerAgentSystem() {
   const fetchLeads = async () => {
     try {
       const res = await fetch("/api/leads");
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setLeads(data);
     } catch (e) {
       console.error("Failed to fetch leads", e);
+      // Don't show alert for background fetches, just log
     }
   };
 
   const fetchEmailLogs = async () => {
     try {
       const res = await fetch("/api/email-logs");
-      if (res.ok) {
-        const data = await res.json();
-        setEmailLogs(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setEmailLogs(data);
     } catch (e) {
       console.error("Failed to fetch email logs", e);
     }
@@ -80,22 +79,25 @@ export default function DesignerAgentSystem() {
   const fetchChatHistory = async () => {
     try {
       const res = await fetch("/api/chat");
-      if (res.ok) {
-        const data = await res.json();
-        setChatHistory(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setChatHistory(data);
     } catch (e) {
       console.error("Failed to fetch chat history", e);
+      setChatHistory([{ 
+        id: Date.now(), 
+        role: "agent", 
+        text: "Hello! I'm your ClientAgent. I'm having trouble connecting to the backend right now. Please check your server status." 
+      }]);
     }
   };
 
   const fetchConfig = async () => {
     try {
       const res = await fetch("/api/config");
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setConfig(data);
     } catch (e) {
       console.error("Failed to fetch settings config", e);
     }
@@ -104,12 +106,15 @@ export default function DesignerAgentSystem() {
   const fetchAgentStatus = async () => {
     try {
       const res = await fetch("/api/status");
-      if (res.ok) {
-        const data = await res.json();
-        setAgentState(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setAgentState(data);
     } catch (e) {
       console.error("Failed to fetch agent status", e);
+      setAgentState(prev => ({ 
+        ...prev, 
+        logs: [...prev.logs, "[ERROR] Cannot connect to backend server"] 
+      }));
     }
   };
 
@@ -128,13 +133,23 @@ export default function DesignerAgentSystem() {
     const interval = setInterval(() => {
       fetchAgentStatus();
       // If agent state changes or completes, update local lists
-      if (agentState.running) {
+      if (agentState.running || agentState.stage === 0) {
         fetchLeads();
         fetchEmailLogs();
       }
-    }, agentState.running ? 2000 : 8000);
+    }, agentState.running ? 2000 : 10000);
     return () => clearInterval(interval);
   }, [agentState.running]);
+
+  // Auto-refresh data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLeads();
+      fetchEmailLogs();
+      fetchConfig();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll chat window to bottom
   useEffect(() => {
@@ -144,13 +159,24 @@ export default function DesignerAgentSystem() {
   // ─── HANDLERS ───────────────────────────────────────────────────────────────
   const handleTriggerAgent = async () => {
     if (agentState.running) return;
+    setLoading(true);
     try {
-      const res = await fetch("/api/run-agent", { method: "POST" });
+      const res = await fetch("/api/run-agent", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
       if (res.ok) {
         fetchAgentStatus();
+        // Start polling more frequently during execution
+        setTimeout(() => fetchLeads(), 3000);
+      } else {
+        const error = await res.text();
+        alert(`Failed to start agent: ${error}`);
       }
     } catch (e) {
-      alert("Error starting agent pipeline.");
+      alert("Error starting agent pipeline. Check your network connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -175,7 +201,7 @@ export default function DesignerAgentSystem() {
   };
 
   const handleSendChat = async () => {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || loading) return;
     const text = chatInput.trim();
     setChatInput("");
     
@@ -192,16 +218,37 @@ export default function DesignerAgentSystem() {
       if (res.ok) {
         const reply = await res.json();
         setChatHistory(prev => [...prev, reply]);
+      } else {
+        throw new Error(`HTTP ${res.status}`);
       }
     } catch (e) {
-      setChatHistory(prev => [...prev, { id: Date.now(), role: "agent", text: "Error talking to agent backend. Check server logs." }]);
+      setChatHistory(prev => [...prev, { 
+        id: Date.now(), 
+        role: "agent", 
+        text: "Error connecting to agent backend. Please check your API key configuration in Settings." 
+      }]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChatKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !loading) {
+      e.preventDefault();
+      handleSendChat();
+    }
+  };
+
   const handleSendEmailDraft = async (leadId, draftText) => {
-    if (!draftText.trim()) return alert("Email draft is empty.");
+    if (!draftText.trim()) {
+      alert("Email draft cannot be empty.");
+      return;
+    }
+    if (!leadId) {
+      alert("Please select a lead first.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/send-email", {
@@ -209,34 +256,48 @@ export default function DesignerAgentSystem() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId, body: draftText })
       });
+      
       if (res.ok) {
-        alert("Email sent successfully!");
+        alert("✅ Email sent successfully!");
         setEmailDraft("");
-        fetchLeads();
+        // Update lead status to reflect email was sent
+        handleUpdateLeadStatus(leadId, "warm", "Outreach Sent");
         fetchEmailLogs();
       } else {
-        const err = await res.json();
-        alert(`Failed to send email: ${err.error}`);
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        alert(`❌ Failed to send email: ${err.error}`);
       }
     } catch (e) {
-      alert("Failed to dispatch email. Please check your SMTP or SendGrid keys.");
+      alert("❌ Failed to send email. Check your SMTP/SendGrid configuration in Settings.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdateLeadStatus = async (leadId, status, stage, value) => {
+    // Optimistic update for immediate UI feedback
+    setLeads(prev => prev.map(lead => 
+      lead.id === leadId 
+        ? { ...lead, status, stage: stage || lead.stage, value: value || lead.value }
+        : lead
+    ));
+
     try {
       const res = await fetch(`/api/leads/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, stage, value })
       });
-      if (res.ok) {
-        fetchLeads();
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
+      // Refresh from server to get accurate data
+      fetchLeads();
     } catch (e) {
       console.error("Failed to update status", e);
+      // Revert optimistic update on failure
+      fetchLeads();
+      alert("Failed to update lead status. Please try again.");
     }
   };
 
@@ -319,14 +380,22 @@ export default function DesignerAgentSystem() {
                 <button 
                   className={`btn btn-primary ${agentState.running ? "disabled" : ""}`} 
                   onClick={handleTriggerAgent}
-                  disabled={agentState.running}
+                  disabled={agentState.running || loading}
                   style={{ flex: 1, padding: "12px" }}
                 >
                   {agentState.running ? (
                     <>
-                      <div className="spinner" /> Agent is Working...
+                      <div className="spinner" style={{ marginRight: "8px" }} /> 
+                      Agent Working Stage {agentState.stage}/5...
                     </>
-                  ) : "Run Agent Pipeline Now"}
+                  ) : loading ? (
+                    <>
+                      <div className="spinner" style={{ marginRight: "8px" }} />
+                      Starting...
+                    </>
+                  ) : (
+                    "🚀 Run Agent Pipeline Now"
+                  )}
                 </button>
               </div>
 
@@ -386,9 +455,16 @@ export default function DesignerAgentSystem() {
                   placeholder="Ask agent for creative support..." 
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSendChat()}
+                  onKeyDown={handleChatKeyDown}
+                  disabled={loading}
                 />
-                <button className="btn btn-primary" onClick={handleSendChat} disabled={loading}>Send</button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSendChat} 
+                  disabled={loading || !chatInput.trim()}
+                >
+                  {loading ? "..." : "Send"}
+                </button>
               </div>
             </div>
           </div>
@@ -861,9 +937,17 @@ export default function DesignerAgentSystem() {
             placeholder="Ask strategies, email followups, or client advice..."
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !loading && handleSendChat()}
+            onKeyDown={handleChatKeyDown}
+            disabled={loading}
+            style={{ flex: 1 }}
           />
-          <button className="btn btn-primary" onClick={handleSendChat} disabled={loading}>Send</button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSendChat} 
+            disabled={loading || !chatInput.trim()}
+          >
+            {loading ? "..." : "Send"}
+          </button>
         </div>
         <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px" }}>
           Claude Sonnet has full awareness of your SQLite pipelines, deal values, and niche settings.
