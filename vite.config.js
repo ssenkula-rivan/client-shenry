@@ -12,5 +12,9 @@ export default defineConfig({
       },
     },
   },
+  publicDir: 'public',
+  build: {
+    assetsInlineLimit: 0, // Don't inline the logo
+    copyPublicDir: true
+  }
 });
-

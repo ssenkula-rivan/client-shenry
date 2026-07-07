@@ -1130,9 +1130,23 @@ export default function DesignerAgentSystem() {
     <div className="app-container">
       <header className="app-header">
         <div className="logo-container">
-          <div className="logo-mark">CA</div>
-          ClientAgent
-          <span className="logo-sub">for Henry</span>
+          <img 
+            src="/LOGO.png" 
+            alt="ClientAgent Logo" 
+            style={{ 
+              width: "36px", 
+              height: "36px", 
+              borderRadius: "8px",
+              marginRight: "12px",
+              objectFit: "cover",
+              border: "2px solid var(--accent)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+            }} 
+          />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontWeight: "800", fontSize: "18px" }}>ClientAgent</span>
+            <span className="logo-sub">for Henry</span>
+          </div>
         </div>
         <nav className="nav-tabs">
           {TABS.map(t => (

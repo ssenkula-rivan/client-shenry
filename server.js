@@ -610,12 +610,16 @@ Always reply in a warm, direct, professional, and action-oriented manner. Under 
 const distPath = path.resolve("./dist");
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
-  app.get("/{*path}", (req, res, next) => {
+  // Serve logo from root as well
+  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
+  app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.resolve(distPath, "index.html"));
   });
   console.log("Serving static production build from /dist folder.");
 } else {
+  // Development mode - serve logo
+  app.use('/LOGO.png', express.static(path.resolve('./LOGO.png')));
   console.log("Static folder /dist not found. Running in development mode (API only).");
 }
 
