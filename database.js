@@ -1,4 +1,3 @@
-import sqlite3 from "sqlite3";
 import { promisify } from "util";
 import path from "path";
 import { createClient } from "@supabase/supabase-js";
