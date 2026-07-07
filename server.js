@@ -620,11 +620,16 @@ if (fs.existsSync(distPath)) {
 }
 
 // Start Server on all interfaces (0.0.0.0) so phone can access it!
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`=================================================`);
-  console.log(` ClientAgent Server running on: http://0.0.0.0:${PORT}`);
-  console.log(` Access locally via: http://localhost:${PORT}`);
-  console.log(` Access on Android phone via: http://<PC-IP>:${PORT}`);
-  console.log(`=================================================`);
-  initDb().then(() => console.log("Database initialized successfully."));
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`=================================================`);
+    console.log(` ClientAgent Server running on: http://0.0.0.0:${PORT}`);
+    console.log(` Access locally via: http://localhost:${PORT}`);
+    console.log(` Access on Android phone via: http://<PC-IP>:${PORT}`);
+    console.log(`=================================================`);
+    initDb().then(() => console.log("Database initialized successfully."));
+  });
+}
+
+// Export for Vercel
+export default app;
