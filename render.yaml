@@ -1,0 +1,34 @@
+# Render Blueprint specification for ClientAgent hosting
+# For details, refer to: https://render.com/docs/blueprints
+
+services:
+  - type: web
+    name: client-agent-system
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_SENDER
+        sync: false
+      - key: AUTO_SEND
+        value: "false"
