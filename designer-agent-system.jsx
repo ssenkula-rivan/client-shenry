@@ -214,7 +214,7 @@ export default function DesignerAgentSystem() {
     }
   };
 
-  const handleSendChat = async () => {
+  const handleSendChat = useCallback(async () => {
     if (!chatInput.trim() || loading) return;
     const text = chatInput.trim();
     setChatInput("");
@@ -244,14 +244,14 @@ export default function DesignerAgentSystem() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chatInput, loading]);
 
-  const handleChatKeyDown = (e) => {
+  const handleChatKeyDown = useCallback((e) => {
     if (e.key === "Enter" && !e.shiftKey && !loading) {
       e.preventDefault();
       handleSendChat();
     }
-  };
+  }, [loading, handleSendChat]);
 
   const handleSendEmailDraft = async (leadId, draftText) => {
     if (!draftText.trim()) {
@@ -465,6 +465,7 @@ export default function DesignerAgentSystem() {
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                 <input 
+                  key="dashboard-chat-input"
                   className="custom-input" 
                   placeholder="Ask agent for creative support..." 
                   value={chatInput}
@@ -949,6 +950,7 @@ export default function DesignerAgentSystem() {
 
         <div style={{ display: "flex", gap: 8 }}>
           <input 
+            key="chat-tab-input"
             className="custom-input"
             placeholder="Ask strategies, email followups, or client advice..."
             value={chatInput}

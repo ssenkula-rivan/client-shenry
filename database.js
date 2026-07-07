@@ -1,5 +1,6 @@
 import { promisify } from "util";
 import path from "path";
+import sqlite3 from "sqlite3";
 import { createClient } from "@supabase/supabase-js";
 
 // Check for Supabase Environment Variables

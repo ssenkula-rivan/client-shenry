@@ -626,6 +626,15 @@ if (fs.existsSync(distPath)) {
     res.sendFile(path.resolve('./LOGO.png'));
   });
   
+  // SPA fallback - serve index.html for any non-API routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.resolve(distPath, 'index.html'));
+  });
+  
   console.log("Serving static production build from /dist folder.");
 } else {
   // Development mode 
