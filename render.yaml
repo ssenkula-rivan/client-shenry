@@ -5,13 +5,11 @@ services:
   - type: web
     name: client-agent-system
     runtime: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 5000
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: SUPABASE_URL
